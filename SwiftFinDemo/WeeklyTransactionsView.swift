@@ -167,29 +167,24 @@ struct WeeklyTransactionsView: View {
         }
         
         do {
+            // Calculate epoch timestamp for one week ago
+            let oneWeekAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+            let startDateEpoch = Int(oneWeekAgo.timeIntervalSince1970)
+            
             if let accessURL = accessURL {
                 let client = SimpleFin.client(withAccessURL: accessURL)
                 self.client = client
                 
-                let response = try await client.fetchAccounts()
+                // Fetch accounts with startDate parameter to get past week's transactions
+                let response = try await client.fetchAccounts(startDate: startDateEpoch)
                 
-                // Filter and group transactions by account
-                let oneWeekAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+                // Group transactions by account
                 var accountTransactionsData: [(account: Account, transactions: [SwiftFin.Transaction])] = []
                 
                 for account in response.accounts {
-                    let weeklyTransactions = account.transactions.filter { transaction in
-                        // Include pending transactions regardless of date
-                        if transaction.isPending {
-                            return true
-                        }
-                        // For non-pending, check if within the past week
-                        return transaction.postedDate >= oneWeekAgo
-                    }
-                    
-                    if !weeklyTransactions.isEmpty {
+                    if !account.transactions.isEmpty {
                         // Sort transactions by posted date (most recent first)
-                        let sortedTransactions = weeklyTransactions.sorted { $0.postedDate > $1.postedDate }
+                        let sortedTransactions = account.transactions.sorted { $0.postedDate > $1.postedDate }
                         accountTransactionsData.append((account: account, transactions: sortedTransactions))
                     }
                 }
@@ -205,25 +200,16 @@ struct WeeklyTransactionsView: View {
                 
                 UserDefaults.standard.set(claimedAccessURL, forKey: accessURLKey)
                 
-                let response = try await client.fetchAccounts()
+                // Fetch accounts with startDate parameter to get past week's transactions
+                let response = try await client.fetchAccounts(startDate: startDateEpoch)
                 
-                // Filter and group transactions by account
-                let oneWeekAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+                // Group transactions by account 
                 var accountTransactionsData: [(account: Account, transactions: [SwiftFin.Transaction])] = []
                 
                 for account in response.accounts {
-                    let weeklyTransactions = account.transactions.filter { transaction in
-                        // Include pending transactions regardless of date
-                        if transaction.isPending {
-                            return true
-                        }
-                        // For non-pending, check if within the past week
-                        return transaction.postedDate >= oneWeekAgo
-                    }
-                    
-                    if !weeklyTransactions.isEmpty {
+                    if !account.transactions.isEmpty {
                         // Sort transactions by posted date (most recent first)
-                        let sortedTransactions = weeklyTransactions.sorted { $0.postedDate > $1.postedDate }
+                        let sortedTransactions = account.transactions.sorted { $0.postedDate > $1.postedDate }
                         accountTransactionsData.append((account: account, transactions: sortedTransactions))
                     }
                 }
