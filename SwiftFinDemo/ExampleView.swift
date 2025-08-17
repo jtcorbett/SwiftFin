@@ -5,8 +5,6 @@ struct SwiftFinExampleView: View {
     @State private var accounts: [Account] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
-    @State private var client: SimpleFinClient?
-    @State private var accessURL: String?
     
     // Setup token from environment variable
     private let setupToken = ProcessInfo.processInfo.environment["SWIFTFIN_SETUP_TOKEN"] ?? ""
@@ -66,9 +64,6 @@ struct SwiftFinExampleView: View {
                     .disabled(isLoading)
                 }
             }
-            .onAppear {
-                loadStoredAccessURL()
-            }
         }
     }
     
@@ -102,30 +97,12 @@ struct SwiftFinExampleView: View {
         }
         
         do {
-            // Check if we already have an access URL
-            if let accessURL = accessURL {
-                let client = SimpleFin.client(withAccessURL: accessURL)
-                self.client = client
-                
-                // Fetch accounts and transactions
-                let response = try await client.fetchAccounts()
-                self.accounts = response.accounts
-            } else {
-                // Step 1: Claim the setup token to get an access URL (first time only)
-                let client = SimpleFinClient()
-                let claimedAccessURL = try await client.claimSetupToken(setupToken)
-                
-                // Store the access URL for future use
-                self.accessURL = claimedAccessURL
-                self.client = client
-                
-                // Persist the access URL to UserDefaults
-                UserDefaults.standard.set(claimedAccessURL, forKey: accessURLKey)
-                
-                // Step 2: Fetch accounts and transactions
-                let response = try await client.fetchAccounts()
-                self.accounts = response.accounts
-            }
+            // Use the new SimpleFin.fetchData method that handles everything automatically
+            let response = try await SimpleFin.fetchData(
+                setupToken: setupToken,
+                userDefaultsKey: accessURLKey
+            )
+            self.accounts = response.accounts
             
         } catch let error as SimpleFinError {
             switch error {
@@ -142,7 +119,6 @@ struct SwiftFinExampleView: View {
             case .authenticationError:
                 errorMessage = "Authentication failed."
             case .accessRevoked:
-                handleAccessRevoked()
                 errorMessage = "Access has been revoked. Please set up a new connection with a fresh setup token."
             @unknown default:
                 errorMessage = "An unknown error occurred: \(error.localizedDescription)"
@@ -152,24 +128,6 @@ struct SwiftFinExampleView: View {
         }
         
         isLoading = false
-    }
-    
-    private func loadStoredAccessURL() {
-        if let storedAccessURL = UserDefaults.standard.string(forKey: accessURLKey) {
-            self.accessURL = storedAccessURL
-        }
-    }
-    
-    private func handleAccessRevoked() {
-        // Clear stored access URL from UserDefaults
-        UserDefaults.standard.removeObject(forKey: accessURLKey)
-        
-        // Clear access URL from current client and instance
-        client?.clearAccessURL()
-        self.accessURL = nil
-        
-        // Clear any loaded account data
-        self.accounts = []
     }
 }
 

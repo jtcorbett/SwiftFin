@@ -6,8 +6,6 @@ struct WeeklyTransactionsView: View {
     @State private var selectedTransaction: SwiftFin.Transaction?
     @State private var isLoading = false
     @State private var errorMessage: String?
-    @State private var client: SimpleFinClient?
-    @State private var accessURL: String?
     
     // Setup token from environment variable
     private let setupToken = ProcessInfo.processInfo.environment["SWIFTFIN_SETUP_TOKEN"] ?? ""
@@ -59,7 +57,6 @@ struct WeeklyTransactionsView: View {
 				Button("Test Date Conversion") {
 					testDateConversion()
 				}
-				.disabled(client == nil)
                 weeklyTransactionsList
             }
         } detail: {
@@ -74,9 +71,6 @@ struct WeeklyTransactionsView: View {
                 }
                 .disabled(isLoading)
             }
-        }
-        .onAppear {
-            loadStoredAccessURL()
         }
     }
     
@@ -171,55 +165,28 @@ struct WeeklyTransactionsView: View {
         }
         
         do {
-            // Calculate epoch timestamp for one week ago
+            // Calculate start date for one week ago
             let oneWeekAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
-            let startDateEpoch = Int(oneWeekAgo.timeIntervalSince1970)
             
-            if let accessURL = accessURL {
-                let client = SimpleFin.client(withAccessURL: accessURL)
-                self.client = client
-                
-                // Fetch accounts with startDate parameter to get past week's transactions
-                let response = try await client.fetchAccounts(startDate: startDateEpoch)
-                
-                // Group transactions by account
-                var accountTransactionsData: [(account: Account, transactions: [SwiftFin.Transaction])] = []
-                
-                for account in response.accounts {
-                    if !account.transactions.isEmpty {
-                        // Sort transactions by posted date (most recent first)
-                        let sortedTransactions = account.transactions.sorted { $0.postedDate > $1.postedDate }
-                        accountTransactionsData.append((account: account, transactions: sortedTransactions))
-                    }
+            // Use the SimpleFin.fetchData method that handles everything automatically
+            let response = try await SimpleFin.fetchData(
+                setupToken: setupToken,
+                userDefaultsKey: accessURLKey,
+                startDate: oneWeekAgo
+            )
+            
+            // Group transactions by account
+            var accountTransactionsData: [(account: Account, transactions: [SwiftFin.Transaction])] = []
+            
+            for account in response.accounts {
+                if !account.transactions.isEmpty {
+                    // Sort transactions by posted date (most recent first)
+                    let sortedTransactions = account.transactions.sorted { $0.postedDate > $1.postedDate }
+                    accountTransactionsData.append((account: account, transactions: sortedTransactions))
                 }
-                
-                self.accountTransactions = accountTransactionsData
-                
-            } else {
-                let client = SimpleFinClient()
-                let claimedAccessURL = try await client.claimSetupToken(setupToken)
-                
-                self.accessURL = claimedAccessURL
-                self.client = client
-                
-                UserDefaults.standard.set(claimedAccessURL, forKey: accessURLKey)
-                
-                // Fetch accounts with startDate parameter to get past week's transactions
-                let response = try await client.fetchAccounts(startDate: startDateEpoch)
-                
-                // Group transactions by account 
-                var accountTransactionsData: [(account: Account, transactions: [SwiftFin.Transaction])] = []
-                
-                for account in response.accounts {
-                    if !account.transactions.isEmpty {
-                        // Sort transactions by posted date (most recent first)
-                        let sortedTransactions = account.transactions.sorted { $0.postedDate > $1.postedDate }
-                        accountTransactionsData.append((account: account, transactions: sortedTransactions))
-                    }
-                }
-                
-                self.accountTransactions = accountTransactionsData
             }
+            
+            self.accountTransactions = accountTransactionsData
             
         } catch let error as SimpleFinError {
             switch error {
@@ -235,6 +202,8 @@ struct WeeklyTransactionsView: View {
                 errorMessage = "Data parsing error: \(decodingError.localizedDescription)"
             case .authenticationError:
                 errorMessage = "Authentication failed."
+            case .accessRevoked:
+                errorMessage = "Access has been revoked. Please set up a new connection with a fresh setup token."
             @unknown default:
                 errorMessage = "An unknown error occurred: \(error.localizedDescription)"
             }
@@ -245,40 +214,27 @@ struct WeeklyTransactionsView: View {
         isLoading = false
     }
     
-    private func loadStoredAccessURL() {
-        if let storedAccessURL = UserDefaults.standard.string(forKey: accessURLKey) {
-            self.accessURL = storedAccessURL
-        }
-    }
     
     private func testDateConversion() {
-        guard let client = client else {
-            print("No client available for testing")
-            return
-        }
-        
         print("Testing flexible date functionality...")
         
         Task {
             do {
+                guard !setupToken.isEmpty else {
+                    print("Setup token not found. Please set SWIFTFIN_SETUP_TOKEN environment variable.")
+                    return
+                }
+                
                 print("Test 1: No date parameters (fetch all)")
-                _ = try await client.fetchAccounts()
+                _ = try await SimpleFin.fetchData(setupToken: setupToken, userDefaultsKey: accessURLKey)
                 
-                print("Test 2: Just start date with Int epoch")
-                let validEpoch = Int(Date().timeIntervalSince1970) - 86400
-                _ = try await client.fetchAccounts(startDate: validEpoch)
-                
-                print("Test 3: Just start date with Date object")
+                print("Test 2: Just start date with Date object")
                 let oneWeekAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
-                _ = try await client.fetchAccounts(startDate: oneWeekAgo)
+                _ = try await SimpleFin.fetchData(setupToken: setupToken, userDefaultsKey: accessURLKey, startDate: oneWeekAgo)
                 
-                print("Test 4: Both dates with Int epochs")
-                let endEpoch = Int(Date().timeIntervalSince1970)
-                _ = try await client.fetchAccounts(startDate: validEpoch, endDate: endEpoch)
-                
-                print("Test 5: Both dates with Date objects")
+                print("Test 3: Both dates with Date objects")
                 let today = Date()
-                _ = try await client.fetchAccounts(startDate: oneWeekAgo, endDate: today)
+                _ = try await SimpleFin.fetchData(setupToken: setupToken, userDefaultsKey: accessURLKey, startDate: oneWeekAgo, endDate: today)
                 
                 print("All tests completed successfully!")
                 

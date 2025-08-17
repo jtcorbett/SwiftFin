@@ -27,6 +27,9 @@ public enum SimpleFinError: Error {
 	/// This typically happens when the user revokes permission through their bank's interface
 	/// Recovery requires obtaining a new setup token from the bank
 	case accessRevoked
+	
+	/// No account found matching the specified name or ID
+	case accountNotFound
 }
 
 extension SimpleFinError: Equatable {
@@ -35,7 +38,8 @@ extension SimpleFinError: Equatable {
 		case (.invalidSetupToken, .invalidSetupToken),
 			 (.invalidAccessURL, .invalidAccessURL),
 			 (.authenticationError, .authenticationError),
-			 (.accessRevoked, .accessRevoked):
+			 (.accessRevoked, .accessRevoked),
+			 (.accountNotFound, .accountNotFound):
 			return true
 		case (.httpError(let lhsCode), .httpError(let rhsCode)):
 			return lhsCode == rhsCode
