@@ -6,9 +6,14 @@ struct SwiftFinExampleView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var client: SimpleFinClient?
+    @State private var accessURL: String?
     
     // Setup token from environment variable
     private let setupToken = ProcessInfo.processInfo.environment["SWIFTFIN_SETUP_TOKEN"] ?? ""
+    
+    // UserDefaults key for storing access URL - You can use whatever string you want just make sure to save it
+	// Failure to save the key means that a new setupToken will need to be generated!
+    private let accessURLKey = "SwiftFin_AccessURL"
     
     var body: some View {
         NavigationView {
@@ -61,6 +66,9 @@ struct SwiftFinExampleView: View {
                     .disabled(isLoading)
                 }
             }
+            .onAppear {
+                loadStoredAccessURL()
+            }
         }
     }
     
@@ -94,13 +102,30 @@ struct SwiftFinExampleView: View {
         }
         
         do {
-            // Step 1: Claim the setup token to get an access URL
-            let client = try await SimpleFin.client(withSetupToken: setupToken)
-            self.client = client
-            
-            // Step 2: Fetch accounts and transactions
-            let response = try await client.fetchAccounts()
-            self.accounts = response.accounts
+            // Check if we already have an access URL
+            if let accessURL = accessURL {
+                let client = SimpleFin.client(withAccessURL: accessURL)
+                self.client = client
+                
+                // Fetch accounts and transactions
+                let response = try await client.fetchAccounts()
+                self.accounts = response.accounts
+            } else {
+                // Step 1: Claim the setup token to get an access URL (first time only)
+                let client = SimpleFinClient()
+                let claimedAccessURL = try await client.claimSetupToken(setupToken)
+                
+                // Store the access URL for future use
+                self.accessURL = claimedAccessURL
+                self.client = client
+                
+                // Persist the access URL to UserDefaults
+                UserDefaults.standard.set(claimedAccessURL, forKey: accessURLKey)
+                
+                // Step 2: Fetch accounts and transactions
+                let response = try await client.fetchAccounts()
+                self.accounts = response.accounts
+            }
             
         } catch let error as SimpleFinError {
             switch error {
@@ -116,12 +141,20 @@ struct SwiftFinExampleView: View {
                 errorMessage = "Data parsing error: \(decodingError.localizedDescription)"
             case .authenticationError:
                 errorMessage = "Authentication failed."
+            @unknown default:
+                errorMessage = "An unknown error occurred: \(error.localizedDescription)"
             }
         } catch {
             errorMessage = "Unexpected error: \(error.localizedDescription)"
         }
         
         isLoading = false
+    }
+    
+    private func loadStoredAccessURL() {
+        if let storedAccessURL = UserDefaults.standard.string(forKey: accessURLKey) {
+            self.accessURL = storedAccessURL
+        }
     }
 }
 
@@ -197,6 +230,7 @@ struct AccountView: View {
         .padding(.vertical, 8)
     }
     
+	// MARK: Formatting
     private func formatCurrency(_ amount: Double) -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
@@ -211,6 +245,8 @@ struct AccountView: View {
         return formatter.string(from: date)
     }
 }
+
+// MARK: - Helper Views
 
 struct TransactionsView: View {
     let transactions: [SwiftFin.Transaction]
