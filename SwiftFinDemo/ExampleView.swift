@@ -354,10 +354,9 @@ struct TransactionRowView: View {
     }
 }
 
-// MARK: - Preview
-
 struct SwiftFinExampleView_Previews: PreviewProvider {
     static var previews: some View {
         SwiftFinExampleView()
+        // WeeklyTransactionsView()
     }
 }

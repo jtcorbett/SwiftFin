@@ -10,7 +10,8 @@ import SwiftData
 
 struct ContentView: View {
    var body: some View {
-	   SwiftFinExampleView()
+	   //SwiftFinExampleView()
+	    WeeklyTransactionsView()
 	}
 }
 
