@@ -2,14 +2,16 @@
 
 A Swift library for interacting with the SimpleFin Bridge to fetch financial data from bank accounts.
 
+@Metadata{
+	@Available(iOS, introduced: "18.0")
+	@Available(MacOS, introduced: "15.0")
+	@SupportedLanguage(swift)
+	@PageColor(purple)
+}
+
 ## Overview
 
 SwiftFin provides a simple, modern Swift interface for accessing financial data through the SimpleFin protocol. The library handles authentication, API communication, and data parsing, making it easy to integrate bank account data into your iOS 18+ or MacOS 15+ applications.
-
-### Requirements
-
-- iOS 18.0+
-- Swift 5.9+
 
 ### Key Features
 

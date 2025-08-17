@@ -1,14 +1,27 @@
 import Foundation
 
-
-
+/// Represents a bank account with its balance information and transaction history
+/// Conforms to Codable for JSON parsing and Identifiable for SwiftUI compatibility
 public struct Account: Codable, Identifiable {
+	/// Unique identifier for the account
 	public let id: String
+	
+	/// Display name of the account (e.g., "Checking Account")
 	public let name: String
+	
+	/// Currency code for the account (e.g., "USD")
 	public let currency: String
+	
+	/// Current balance as a string representation
 	public let balance: String
+	
+	/// Available balance (may differ from current balance for credit accounts)
 	public let availableBalance: String?
+	
+	/// Unix timestamp of when the balance was last updated
 	public let balanceDate: Int
+	
+	/// Array of transactions associated with this account
 	public let transactions: [Transaction]
 	
 	enum CodingKeys: String, CodingKey {
@@ -18,6 +31,7 @@ public struct Account: Codable, Identifiable {
 		case transactions
 	}
 	
+	/// Custom decoder to handle flexible balance date format (string or int)
 	public init(from decoder: Decoder) throws {
 		let container = try decoder.container(keyedBy: CodingKeys.self)
 		
@@ -28,6 +42,7 @@ public struct Account: Codable, Identifiable {
 		balance = try container.decode(String.self, forKey: .balance)
 		availableBalance = try? container.decode(String.self, forKey: .availableBalance)
 		
+		// Handle balance date as either string or int
 		if let balanceDateString = try? container.decode(String.self, forKey: .balanceDate) {
 			balanceDate = Int(balanceDateString) ?? 0
 		} else {

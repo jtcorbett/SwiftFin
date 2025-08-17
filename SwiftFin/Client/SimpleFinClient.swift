@@ -1,9 +1,46 @@
 import Foundation
 
+/// SimpleFin API client for fetching bank account and transaction data
+/// 
+/// This client handles authentication, network requests, and data parsing for the SimpleFin API.
+/// It supports both setup token claiming and direct access URL usage for data fetching.
+///
+/// Key features:
+/// - Setup token claiming to obtain access URLs
+/// - Account and transaction data fetching with date filtering
+/// - Flexible date handling (Unix timestamps or Date objects)
+/// - Automatic JSON parsing to Swift structs
+/// - Comprehensive error handling
+///
+/// - Important: **SAVE ACCESS URLS!** Setup tokens can only be claimed once. Always save the access URL
+///   after claiming a setup token for future use. Store it securely (e.g., in Keychain).
+///
+/// Example usage:
+/// ```swift
+/// let client = SimpleFinClient()
+/// 
+/// // Claim setup token to get access URL
+/// let accessURL = try await client.claimSetupToken("setup_token")
+/// // IMPORTANT: Save this accessURL securely for future use!
+/// 
+/// // Or get the access URL from the client
+/// if let savedAccessURL = client.getAccessURL() {
+///     // Save this URL securely
+/// }
+/// 
+/// // Fetch all accounts and transactions
+/// let response = try await client.fetchAccounts()
+/// 
+/// // Fetch with date filtering
+/// let startDate = Date().addingTimeInterval(-30 * 24 * 60 * 60) // 30 days ago
+/// let recent = try await client.fetchAccounts(startDate: startDate)
+/// ```
 public class SimpleFinClient {
 	private let session: URLSession
 	private var accessURL: String?
 	
+	/// Initialize a new SimpleFin client
+	/// - Parameter session: URLSession to use for network requests (defaults to .shared)
 	public init(session: URLSession = .shared) {
 		self.session = session
 	}
@@ -11,8 +48,14 @@ public class SimpleFinClient {
 	// MARK: - Setup Token Handling
 	
 	/// Converts a setup token to an access URL by making a claim request
+	/// 
+	/// - Important: **SAVE THE RETURNED ACCESS URL!** Setup tokens can only be claimed once.
+	///   Store the returned access URL securely (e.g., in Keychain) for future use. If you lose
+	///   the access URL, you will need to obtain a new setup token from your bank.
+	/// 
 	/// - Parameter setupToken: Base64 encoded setup token
-	/// - Returns: Access URL string
+	/// - Returns: Access URL string that should be saved for future use
+	/// - Throws: SimpleFinError if the setup token is invalid, already claimed, or network errors occur
 	public func claimSetupToken(_ setupToken: String) async throws -> String {
 		guard let claimURL = setupToken.fromBase64() else {
 			throw SimpleFinError.invalidSetupToken
@@ -141,8 +184,14 @@ public class SimpleFinClient {
 	// MARK: - Convenience Methods
 	
 	/// Initialize client with setup token and immediately claim it
+	/// 
+	/// - Important: **SAVE THE ACCESS URL!** The setup token can only be claimed once.
+	///   After initialization, retrieve the access URL from the client and save it securely
+	///   for future use. If you lose the access URL, you will need a new setup token.
+	/// 
 	/// - Parameter setupToken: Base64 encoded setup token
 	/// - Returns: Configured SimpleFinClient ready to fetch data
+	/// - Throws: SimpleFinError if the setup token is invalid, already claimed, or network errors occur
 	public static func withSetupToken(_ setupToken: String) async throws -> SimpleFinClient {
 		let client = SimpleFinClient()
 		_ = try await client.claimSetupToken(setupToken)
@@ -153,6 +202,16 @@ public class SimpleFinClient {
 	/// - Parameter accessURL: The SimpleFin access URL
 	public func setAccessURL(_ accessURL: String) {
 		self.accessURL = accessURL
+	}
+	
+	/// Get the current access URL stored in this client
+	/// 
+	/// Use this method to retrieve the access URL after claiming a setup token
+	/// so you can save it securely for future use.
+	/// 
+	/// - Returns: The access URL if available, nil if not set
+	public func getAccessURL() -> String? {
+		return accessURL
 	}
 	
 	// MARK: - Private Methods
