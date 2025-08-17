@@ -144,6 +144,10 @@ public class SimpleFinClient {
 			
 			if let httpResponse = response as? HTTPURLResponse {
 				guard httpResponse.statusCode == 200 else {
+					// Check for specific revocation scenarios
+					if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+						throw SimpleFinError.accessRevoked
+					}
 					throw SimpleFinError.httpError(httpResponse.statusCode)
 				}
 			}
@@ -212,6 +216,14 @@ public class SimpleFinClient {
 	/// - Returns: The access URL if available, nil if not set
 	public func getAccessURL() -> String? {
 		return accessURL
+	}
+	
+	/// Clear the stored access URL
+	/// 
+	/// Use this method when you detect that the access URL has been revoked
+	/// and needs to be removed from storage to force re-authentication.
+	public func clearAccessURL() {
+		self.accessURL = nil
 	}
 	
 	// MARK: - Private Methods

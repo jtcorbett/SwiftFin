@@ -22,4 +22,28 @@ public enum SimpleFinError: Error {
 	/// HTTP request returned an error status code
 	/// - Parameter Int: The HTTP status code
 	case httpError(Int)
+	
+	/// The access has been revoked by the user or bank
+	/// This typically happens when the user revokes permission through their bank's interface
+	/// Recovery requires obtaining a new setup token from the bank
+	case accessRevoked
+}
+
+extension SimpleFinError: Equatable {
+	public static func == (lhs: SimpleFinError, rhs: SimpleFinError) -> Bool {
+		switch (lhs, rhs) {
+		case (.invalidSetupToken, .invalidSetupToken),
+			 (.invalidAccessURL, .invalidAccessURL),
+			 (.authenticationError, .authenticationError),
+			 (.accessRevoked, .accessRevoked):
+			return true
+		case (.httpError(let lhsCode), .httpError(let rhsCode)):
+			return lhsCode == rhsCode
+		case (.networkError, .networkError),
+			 (.decodingError, .decodingError):
+			return true
+		default:
+			return false
+		}
+	}
 }

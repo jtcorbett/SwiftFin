@@ -54,4 +54,18 @@ public struct SimpleFin {
 		client.setAccessURL(accessURL)
 		return client
 	}
+	
+	/// Check if an error indicates that access has been revoked
+	/// 
+	/// Use this helper method to determine if you need to clear stored access URLs
+	/// and prompt the user to obtain a new setup token.
+	///
+	/// - Parameter error: The error to check
+	/// - Returns: true if the error indicates access revocation
+	public static func isAccessRevoked(error: Error) -> Bool {
+		if let simpleFinError = error as? SimpleFinError {
+			return simpleFinError == .accessRevoked
+		}
+		return false
+	}
 }

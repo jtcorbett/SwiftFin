@@ -141,6 +141,9 @@ struct SwiftFinExampleView: View {
                 errorMessage = "Data parsing error: \(decodingError.localizedDescription)"
             case .authenticationError:
                 errorMessage = "Authentication failed."
+            case .accessRevoked:
+                handleAccessRevoked()
+                errorMessage = "Access has been revoked. Please set up a new connection with a fresh setup token."
             @unknown default:
                 errorMessage = "An unknown error occurred: \(error.localizedDescription)"
             }
@@ -155,6 +158,18 @@ struct SwiftFinExampleView: View {
         if let storedAccessURL = UserDefaults.standard.string(forKey: accessURLKey) {
             self.accessURL = storedAccessURL
         }
+    }
+    
+    private func handleAccessRevoked() {
+        // Clear stored access URL from UserDefaults
+        UserDefaults.standard.removeObject(forKey: accessURLKey)
+        
+        // Clear access URL from current client and instance
+        client?.clearAccessURL()
+        self.accessURL = nil
+        
+        // Clear any loaded account data
+        self.accounts = []
     }
 }
 
