@@ -5,9 +5,14 @@ public struct Transaction: Codable, Identifiable {
 	public let description: String
 	public let memo: String?
 	public let payee: String?
+	public let transactedAt: Int?
+	public let pending: Bool?
+	public let extra: [String: AnyCodable]?
 	
 	enum CodingKeys: String, CodingKey {
 		case id, posted, amount, description, memo, payee
+		case transactedAt = "transacted_at"
+		case pending, extra
 	}
 	
 	public init(from decoder: Decoder) throws {
@@ -25,5 +30,14 @@ public struct Transaction: Codable, Identifiable {
 		}
 		
 		amount = try container.decode(String.self, forKey: .amount)
+		
+		if let transactedString = try? container.decode(String.self, forKey: .transactedAt) {
+			transactedAt = Int(transactedString)
+		} else {
+			transactedAt = try? container.decode(Int.self, forKey: .transactedAt)
+		}
+		
+		pending = try? container.decode(Bool.self, forKey: .pending)
+		extra = try? container.decode([String: AnyCodable].self, forKey: .extra)
 	}
 }

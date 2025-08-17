@@ -49,22 +49,25 @@ public class SimpleFinClient {
 	// MARK: - Account Data Fetching
 	
 	/// Fetches accounts using the stored access URL
-	/// - Parameter startDate: Unix timestamp for transaction start date (optional)
+	/// - Parameters:
+	///   - startDate: Unix timestamp for transaction start date (optional) - includes transactions on or after this date
+	///   - endDate: Unix timestamp for transaction end date (optional) - includes transactions before (but not on) this date
 	/// - Returns: SimplefinResponse containing accounts and transactions
-	public func fetchAccounts(startDate: Int? = nil) async throws -> SimplefinResponse {
+	public func fetchAccounts(startDate: Int? = nil, endDate: Int? = nil) async throws -> SimplefinResponse {
 		guard let accessURL = accessURL else {
 			throw SimpleFinError.invalidAccessURL
 		}
 		
-		return try await fetchAccounts(accessURL: accessURL, startDate: startDate)
+		return try await fetchAccounts(accessURL: accessURL, startDate: startDate, endDate: endDate)
 	}
 	
 	/// Fetches accounts using a provided access URL
 	/// - Parameters:
 	///   - accessURL: The SimpleFin access URL
-	///   - startDate: Unix timestamp for transaction start date (optional)
+	///   - startDate: Unix timestamp for transaction start date (optional) - includes transactions on or after this date
+	///   - endDate: Unix timestamp for transaction end date (optional) - includes transactions before (but not on) this date
 	/// - Returns: SimplefinResponse containing accounts and transactions
-	public func fetchAccounts(accessURL: String, startDate: Int? = nil) async throws -> SimplefinResponse {
+	public func fetchAccounts(accessURL: String, startDate: Int? = nil, endDate: Int? = nil) async throws -> SimplefinResponse {
 		guard let components = parseAccessURL(accessURL) else {
 			throw SimpleFinError.invalidAccessURL
 		}
@@ -74,7 +77,8 @@ public class SimpleFinClient {
 				to: components.accountsURL,
 				username: components.username,
 				password: components.password,
-				startDate: startDate
+				startDate: startDate,
+				endDate: endDate
 			)
 			
 			if let httpResponse = response as? HTTPURLResponse {
@@ -144,7 +148,8 @@ public class SimpleFinClient {
 		to urlString: String,
 		username: String,
 		password: String,
-		startDate: Int?
+		startDate: Int?,
+		endDate: Int? = nil
 	) async throws -> (Data, URLResponse) {
 		guard let url = URL(string: urlString) else {
 			throw SimpleFinError.invalidAccessURL
@@ -152,10 +157,18 @@ public class SimpleFinClient {
 		
 		var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
 		
+		var queryItems: [URLQueryItem] = []
+		
 		if let startDate = startDate {
-			components?.queryItems = [
-				URLQueryItem(name: "start-date", value: String(startDate))
-			]
+			queryItems.append(URLQueryItem(name: "start-date", value: String(startDate)))
+		}
+		
+		if let endDate = endDate {
+			queryItems.append(URLQueryItem(name: "end-date", value: String(endDate)))
+		}
+		
+		if !queryItems.isEmpty {
+			components?.queryItems = queryItems
 		}
 		
 		guard let finalURL = components?.url else {
