@@ -259,12 +259,12 @@ struct SwiftFinTests {
 		}
 	}
 	
-	@Test("SwiftFin namespace functions")
-	func swiftFinNamespace() async throws {
-		#expect(SwiftFin.version == "1.0.0")
+	@Test("SimpleFin namespace functions")
+	func simpleFinNamespace() async throws {
+		#expect(SimpleFin.version == "1.0.0")
 		
 		// Test that convenience functions exist (we can't test the actual network calls without mocking)
-		let client = SwiftFin.client(withAccessURL: "https://example.com")
+		let client = SimpleFin.client(withAccessURL: "https://example.com")
 		#expect(client != nil)
 	}
 	
