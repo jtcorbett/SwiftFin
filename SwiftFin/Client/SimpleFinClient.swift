@@ -48,7 +48,25 @@ public class SimpleFinClient {
 	
 	// MARK: - Account Data Fetching
 	
-	/// Fetches accounts using the stored access URL
+	/// Fetches accounts using the stored access URL (no date filtering)
+	/// - Returns: SimplefinResponse containing accounts and transactions
+	public func fetchAccounts() async throws -> SimplefinResponse {
+		guard let accessURL = accessURL else {
+			throw SimpleFinError.invalidAccessURL
+		}
+		
+		return try await fetchAccounts(accessURL: accessURL)
+	}
+	
+	/// Fetches accounts using a provided access URL (no date filtering)
+	/// - Parameters:
+	///   - accessURL: The SimpleFin access URL
+	/// - Returns: SimplefinResponse containing accounts and transactions
+	public func fetchAccounts(accessURL: String) async throws -> SimplefinResponse {
+		return try await fetchAccounts(accessURL: accessURL, startDate: nil as Int?, endDate: nil as Int?)
+	}
+	
+	/// Fetches accounts using the stored access URL with Unix timestamps
 	/// - Parameters:
 	///   - startDate: Unix timestamp for transaction start date (optional) - includes transactions on or after this date
 	///   - endDate: Unix timestamp for transaction end date (optional) - includes transactions before (but not on) this date
@@ -61,7 +79,7 @@ public class SimpleFinClient {
 		return try await fetchAccounts(accessURL: accessURL, startDate: startDate, endDate: endDate)
 	}
 	
-	/// Fetches accounts using a provided access URL
+	/// Fetches accounts using a provided access URL with Unix timestamps
 	/// - Parameters:
 	///   - accessURL: The SimpleFin access URL
 	///   - startDate: Unix timestamp for transaction start date (optional) - includes transactions on or after this date
@@ -95,6 +113,29 @@ public class SimpleFinClient {
 		} catch {
 			throw SimpleFinError.decodingError(error)
 		}
+	}
+	
+	/// Fetches accounts using the stored access URL with Date objects
+	/// - Parameters:
+	///   - startDate: Start date for transactions (automatically converted to Unix timestamp)
+	///   - endDate: End date for transactions (automatically converted to Unix timestamp)
+	/// - Returns: SimplefinResponse containing accounts and transactions
+	public func fetchAccounts(startDate: Date? = nil, endDate: Date? = nil) async throws -> SimplefinResponse {
+		let startEpoch = startDate.map { Int($0.timeIntervalSince1970) }
+		let endEpoch = endDate.map { Int($0.timeIntervalSince1970) }
+		return try await fetchAccounts(startDate: startEpoch, endDate: endEpoch)
+	}
+	
+	/// Fetches accounts using a provided access URL with Date objects
+	/// - Parameters:
+	///   - accessURL: The SimpleFin access URL
+	///   - startDate: Start date for transactions (automatically converted to Unix timestamp)
+	///   - endDate: End date for transactions (automatically converted to Unix timestamp)
+	/// - Returns: SimplefinResponse containing accounts and transactions
+	public func fetchAccounts(accessURL: String, startDate: Date? = nil, endDate: Date? = nil) async throws -> SimplefinResponse {
+		let startEpoch = startDate.map { Int($0.timeIntervalSince1970) }
+		let endEpoch = endDate.map { Int($0.timeIntervalSince1970) }
+		return try await fetchAccounts(accessURL: accessURL, startDate: startEpoch, endDate: endEpoch)
 	}
 	
 	// MARK: - Convenience Methods

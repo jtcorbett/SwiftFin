@@ -56,6 +56,10 @@ struct WeeklyTransactionsView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
+				Button("Test Date Conversion") {
+					testDateConversion()
+				}
+				.disabled(client == nil)
                 weeklyTransactionsList
             }
         } detail: {
@@ -244,6 +248,43 @@ struct WeeklyTransactionsView: View {
     private func loadStoredAccessURL() {
         if let storedAccessURL = UserDefaults.standard.string(forKey: accessURLKey) {
             self.accessURL = storedAccessURL
+        }
+    }
+    
+    private func testDateConversion() {
+        guard let client = client else {
+            print("No client available for testing")
+            return
+        }
+        
+        print("Testing flexible date functionality...")
+        
+        Task {
+            do {
+                print("Test 1: No date parameters (fetch all)")
+                _ = try await client.fetchAccounts()
+                
+                print("Test 2: Just start date with Int epoch")
+                let validEpoch = Int(Date().timeIntervalSince1970) - 86400
+                _ = try await client.fetchAccounts(startDate: validEpoch)
+                
+                print("Test 3: Just start date with Date object")
+                let oneWeekAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+                _ = try await client.fetchAccounts(startDate: oneWeekAgo)
+                
+                print("Test 4: Both dates with Int epochs")
+                let endEpoch = Int(Date().timeIntervalSince1970)
+                _ = try await client.fetchAccounts(startDate: validEpoch, endDate: endEpoch)
+                
+                print("Test 5: Both dates with Date objects")
+                let today = Date()
+                _ = try await client.fetchAccounts(startDate: oneWeekAgo, endDate: today)
+                
+                print("All tests completed successfully!")
+                
+            } catch {
+                print("Error during testing: \(error)")
+            }
         }
     }
 }
