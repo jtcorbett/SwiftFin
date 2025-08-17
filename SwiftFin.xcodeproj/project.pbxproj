@@ -25,9 +25,28 @@
 		BC1E10B12E52727C00F26D67 /* SwiftFinTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SwiftFinTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		BC1E10C62E5272D100F26D67 /* Exceptions for "SwiftFin" folder in "SwiftFinTests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Client/ParsedURLComponents.swift,
+				Client/SimpleFinClient.swift,
+				Client/SimpleFinError.swift,
+				SimpleFinModels/Account.swift,
+				SimpleFinModels/Extensions.swift,
+				SimpleFinModels/SimplefinResponse.swift,
+				SimpleFinModels/Transaction.swift,
+			);
+			target = BC1E10B02E52727C00F26D67 /* SwiftFinTests */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		BC1E10A82E52727B00F26D67 /* SwiftFin */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				BC1E10C62E5272D100F26D67 /* Exceptions for "SwiftFin" folder in "SwiftFinTests" target */,
+			);
 			path = SwiftFin;
 			sourceTree = "<group>";
 		};
