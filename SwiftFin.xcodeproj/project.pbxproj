@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		BC0248DE2E53D20A0049EC4D /* Package.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0248DD2E53D20A0049EC4D /* Package.swift */; };
 		BC1E10B22E52727C00F26D67 /* SwiftFin.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BC1E10A62E52727B00F26D67 /* SwiftFin.framework */; };
 		BC1E11102E5279CF00F26D67 /* SwiftFin.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BC1E10A62E52727B00F26D67 /* SwiftFin.framework */; };
 /* End PBXBuildFile section */
@@ -22,6 +23,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		BC0248DD2E53D20A0049EC4D /* Package.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Package.swift; sourceTree = "<group>"; };
 		BC1E10A62E52727B00F26D67 /* SwiftFin.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = SwiftFin.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		BC1E10B12E52727C00F26D67 /* SwiftFinTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SwiftFinTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		BC1E10E32E52792C00F26D67 /* SwiftFinDemo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SwiftFinDemo.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -94,6 +96,7 @@
 		BC1E109C2E52727B00F26D67 = {
 			isa = PBXGroup;
 			children = (
+				BC0248DD2E53D20A0049EC4D /* Package.swift */,
 				BC1E10A82E52727B00F26D67 /* SwiftFin */,
 				BC1E10B52E52727C00F26D67 /* SwiftFinTests */,
 				BC1E10E42E52792C00F26D67 /* SwiftFinDemo */,
@@ -271,6 +274,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BC0248DE2E53D20A0049EC4D /* Package.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
