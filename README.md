@@ -18,7 +18,7 @@ SwiftFin provides a simple, modern Swift interface for accessing financial data 
 Add SwiftFin to your project using Swift Package Manager:
 
 1. In Xcode, go to File → Add Package Dependencies
-2. Enter the repository URL: `https://github.com/Effywolf/SwiftFin` (replace with actual URL)
+2. Enter the repository URL: `https://github.com/Effywolf/SwiftFin` 
 3. Select the version you want to use
 
 Or add it to your `Package.swift`:
