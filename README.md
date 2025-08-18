@@ -115,6 +115,8 @@ For comprehensive documentation with examples, see the included documentation ca
 - Working with account data
 - SwiftUI integration examples
 
+All Docs are made in DocC and best viewed in Xcode.
+
 ## Contributing
 
 1. Fork the repository
