@@ -90,58 +90,45 @@ public class SimpleFinClient {
 	}
 	
 	// MARK: - Account Data Fetching
-	
-	/// Fetches accounts using the stored access URL (no date filtering)
-	/// - Returns: SimplefinResponse containing accounts and transactions
-	public func fetchAccounts() async throws -> SimplefinResponse {
-		guard let accessURL = accessURL else {
-			throw SimpleFinError.invalidAccessURL
-		}
-		
-		return try await fetchAccounts(accessURL: accessURL)
-	}
-	
-	/// Fetches accounts using a provided access URL (no date filtering)
+
+	/// Fetches accounts with full control over all parameters
 	/// - Parameters:
-	///   - accessURL: The SimpleFin access URL
-	/// - Returns: SimplefinResponse containing accounts and transactions
-	public func fetchAccounts(accessURL: String) async throws -> SimplefinResponse {
-		return try await fetchAccounts(accessURL: accessURL, startDate: nil as Int?, endDate: nil as Int?)
-	}
-	
-	/// Fetches accounts using the stored access URL with Unix timestamps
-	/// - Parameters:
+	///   - accessURL: The SimpleFin access URL (uses stored URL if nil)
 	///   - startDate: Unix timestamp for transaction start date (optional) - includes transactions on or after this date
 	///   - endDate: Unix timestamp for transaction end date (optional) - includes transactions before (but not on) this date
+	///   - pending: If true, include pending transactions (appends ?pending=1)
+	///   - balancesOnly: If true, return only balance data without transactions (appends ?balances-only=1)
+	///   - accountIds: Optional array of account IDs to filter results
 	/// - Returns: SimplefinResponse containing accounts and transactions
-	public func fetchAccounts(startDate: Int? = nil, endDate: Int? = nil) async throws -> SimplefinResponse {
-		guard let accessURL = accessURL else {
+	public func fetchAccounts(
+		accessURL: String? = nil,
+		startDate: Int? = nil,
+		endDate: Int? = nil,
+		pending: Bool? = nil,
+		balancesOnly: Bool? = nil,
+		accountIds: [String]? = nil
+	) async throws -> SimplefinResponse {
+		let url = accessURL ?? self.accessURL
+		guard let url = url else {
 			throw SimpleFinError.invalidAccessURL
 		}
-		
-		return try await fetchAccounts(accessURL: accessURL, startDate: startDate, endDate: endDate)
-	}
-	
-	/// Fetches accounts using a provided access URL with Unix timestamps
-	/// - Parameters:
-	///   - accessURL: The SimpleFin access URL
-	///   - startDate: Unix timestamp for transaction start date (optional) - includes transactions on or after this date
-	///   - endDate: Unix timestamp for transaction end date (optional) - includes transactions before (but not on) this date
-	/// - Returns: SimplefinResponse containing accounts and transactions
-	public func fetchAccounts(accessURL: String, startDate: Int? = nil, endDate: Int? = nil) async throws -> SimplefinResponse {
-		guard let components = parseAccessURL(accessURL) else {
+
+		guard let components = parseAccessURL(url) else {
 			throw SimpleFinError.invalidAccessURL
 		}
-		
+
 		do {
 			let (data, response) = try await makeAuthenticatedRequest(
 				to: components.accountsURL,
 				username: components.username,
 				password: components.password,
 				startDate: startDate,
-				endDate: endDate
+				endDate: endDate,
+				pending: pending,
+				balancesOnly: balancesOnly,
+				accountIds: accountIds
 			)
-			
+
 			if let httpResponse = response as? HTTPURLResponse {
 				guard httpResponse.statusCode == 200 else {
 					// Check for specific revocation scenarios
@@ -151,38 +138,44 @@ public class SimpleFinClient {
 					throw SimpleFinError.httpError(httpResponse.statusCode)
 				}
 			}
-			
+
 			let decoder = JSONDecoder()
 			return try decoder.decode(SimplefinResponse.self, from: data)
-			
+
 		} catch let error as SimpleFinError {
 			throw error
 		} catch {
 			throw SimpleFinError.decodingError(error)
 		}
 	}
-	
-	/// Fetches accounts using the stored access URL with Date objects
+
+	/// Fetches accounts with Date objects (convenience method)
 	/// - Parameters:
+	///   - accessURL: The SimpleFin access URL (uses stored URL if nil)
 	///   - startDate: Start date for transactions (automatically converted to Unix timestamp)
 	///   - endDate: End date for transactions (automatically converted to Unix timestamp)
+	///   - pending: If true, include pending transactions (appends ?pending=1)
+	///   - balancesOnly: If true, return only balance data without transactions (appends ?balances-only=1)
+	///   - accountIds: Optional array of account IDs to filter results
 	/// - Returns: SimplefinResponse containing accounts and transactions
-	public func fetchAccounts(startDate: Date? = nil, endDate: Date? = nil) async throws -> SimplefinResponse {
+	public func fetchAccounts(
+		accessURL: String? = nil,
+		startDate: Date? = nil,
+		endDate: Date? = nil,
+		pending: Bool? = nil,
+		balancesOnly: Bool? = nil,
+		accountIds: [String]? = nil
+	) async throws -> SimplefinResponse {
 		let startEpoch = startDate.map { Int($0.timeIntervalSince1970) }
 		let endEpoch = endDate.map { Int($0.timeIntervalSince1970) }
-		return try await fetchAccounts(startDate: startEpoch, endDate: endEpoch)
-	}
-	
-	/// Fetches accounts using a provided access URL with Date objects
-	/// - Parameters:
-	///   - accessURL: The SimpleFin access URL
-	///   - startDate: Start date for transactions (automatically converted to Unix timestamp)
-	///   - endDate: End date for transactions (automatically converted to Unix timestamp)
-	/// - Returns: SimplefinResponse containing accounts and transactions
-	public func fetchAccounts(accessURL: String, startDate: Date? = nil, endDate: Date? = nil) async throws -> SimplefinResponse {
-		let startEpoch = startDate.map { Int($0.timeIntervalSince1970) }
-		let endEpoch = endDate.map { Int($0.timeIntervalSince1970) }
-		return try await fetchAccounts(accessURL: accessURL, startDate: startEpoch, endDate: endEpoch)
+		return try await fetchAccounts(
+			accessURL: accessURL,
+			startDate: startEpoch,
+			endDate: endEpoch,
+			pending: pending,
+			balancesOnly: balancesOnly,
+			accountIds: accountIds
+		)
 	}
 	
 	// MARK: - Convenience Methods
@@ -261,7 +254,10 @@ public class SimpleFinClient {
 		username: String,
 		password: String,
 		startDate: Int?,
-		endDate: Int? = nil
+		endDate: Int? = nil,
+		pending: Bool? = nil,
+		balancesOnly: Bool? = nil,
+		accountIds: [String]? = nil
 	) async throws -> (Data, URLResponse) {
 		guard let url = URL(string: urlString) else {
 			throw SimpleFinError.invalidAccessURL
@@ -278,7 +274,24 @@ public class SimpleFinClient {
 		if let endDate = endDate {
 			queryItems.append(URLQueryItem(name: "end-date", value: String(endDate)))
 		}
-		
+
+		// Add pending parameter if explicitly set to true
+		if let pending = pending {
+			queryItems.append(URLQueryItem(name: "pending", value: pending ? "1" : "0"))
+		}
+
+		// Add balances-only parameter if explicitly set to true
+		if let balancesOnly = balancesOnly {
+			queryItems.append(URLQueryItem(name: "balances-only", value: balancesOnly ? "1" : "0"))
+		}
+
+		// Add account parameter(s) - can be specified multiple times
+		if let accountIds = accountIds {
+			for accountId in accountIds {
+				queryItems.append(URLQueryItem(name: "account", value: accountId))
+			}
+		}
+
 		if !queryItems.isEmpty {
 			components?.queryItems = queryItems
 		}
