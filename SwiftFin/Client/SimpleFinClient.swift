@@ -91,6 +91,19 @@ public class SimpleFinClient {
 	
 	// MARK: - Account Data Fetching
 
+	/// Fetches all accounts using stored access URL with no filters
+	/// - Returns: SimplefinResponse containing accounts and transactions
+	public func fetchAccounts() async throws -> SimplefinResponse {
+		return try await fetchAccounts(
+			accessURL: nil,
+			startDate: nil as Int?,
+			endDate: nil as Int?,
+			pending: nil,
+			balancesOnly: nil,
+			accountIds: nil
+		)
+	}
+
 	/// Fetches accounts with full control over all parameters
 	/// - Parameters:
 	///   - accessURL: The SimpleFin access URL (uses stored URL if nil)
