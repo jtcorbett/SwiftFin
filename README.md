@@ -33,8 +33,17 @@ dependencies: [
 
 - **Easy Setup**: Initialize with setup tokens or access URLs
 - **Async/Await Support**: Modern Swift concurrency for seamless integration
-- **Date Filtering**: Fetch transactions within specific date ranges
-- **Type Safety**: Strongly typed models for accounts and transactions
+- **Advanced Filtering**:
+  - Date range filtering with Unix timestamps or Date objects
+  - Filter by specific account IDs
+  - Include/exclude pending transactions
+  - Fetch balances only (without transaction history)
+- **Complete SimpleFIN Protocol Support**:
+  - Organization/institution data for each account
+  - Pending transaction support
+  - Error message handling from API
+  - All query parameters supported
+- **Type Safety**: Strongly typed models for accounts, transactions, and organizations
 - **Error Handling**: Comprehensive error types for robust error handling
 
 ## Why SimpleFin?
@@ -63,6 +72,11 @@ do {
 
     // Fetch all accounts and transactions
     let response = try await client.fetchAccounts()
+
+    // Check for API errors
+    if !response.errors.isEmpty {
+        print("API warnings: \(response.errors)")
+    }
 
     print("Found \(response.accounts.count) accounts")
     for account in response.accounts {
@@ -95,16 +109,54 @@ do {
 }
 ```
 
+### Advanced Filtering
+
+```swift
+// Fetch pending transactions from the last 30 days
+let thirtyDaysAgo = Date().addingTimeInterval(-30 * 24 * 60 * 60)
+let response = try await client.fetchAccounts(
+    startDate: thirtyDaysAgo,
+    pending: true
+)
+
+// Fetch balances only (no transaction history)
+let balances = try await client.fetchAccounts(balancesOnly: true)
+
+// Fetch specific accounts
+let accountIds = ["ACT-123", "ACT-456"]
+let specificAccounts = try await client.fetchAccounts(accountIds: accountIds)
+
+// Combine filters
+let filtered = try await client.fetchAccounts(
+    startDate: thirtyDaysAgo,
+    endDate: Date(),
+    pending: true,
+    accountIds: ["ACT-123"]
+)
+```
+
 ## API Reference
 
 ### Core Types
 
 - **`SimpleFin`**: Main entry point for creating clients
 - **`SimpleFinClient`**: Client for making API requests
+- **`SimplefinResponse`**: Response container with error messages and account data
 - **`Account`**: Represents a bank account with balance and transaction data
-- **`Transaction`**: Individual transaction data
-- **`SimplefinResponse`**: Response container for account data
+- **`Organization`**: Financial institution/bank information
+- **`Transaction`**: Individual transaction data with optional pending flag
 - **`SimpleFinError`**: Error types for comprehensive error handling
+
+### Query Parameters
+
+All parameters are optional and use `nil` defaults:
+
+- `accessURL: String?` - Override the stored access URL
+- `startDate: Int?` or `Date?` - Include transactions on or after this date
+- `endDate: Int?` or `Date?` - Include transactions before (but not on) this date
+- `pending: Bool?` - Set to `true` to include pending transactions
+- `balancesOnly: Bool?` - Set to `true` to fetch only balances (no transactions)
+- `accountIds: [String]?` - Array of account IDs to filter results
 
 ## Documentation
 

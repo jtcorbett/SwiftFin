@@ -18,6 +18,10 @@ struct SwiftFinTests {
 	func accountBalanceInDollars() async throws {
 		let json = """
 		{
+			"org": {
+				"domain": "testbank.com",
+				"sfin-url": "https://beta-bridge.simplefin.org/simplefin"
+			},
 			"id": "test-account",
 			"name": "Test Account",
 			"currency": "USD",
@@ -26,13 +30,14 @@ struct SwiftFinTests {
 			"transactions": []
 		}
 		"""
-		
+
 		let data = json.data(using: .utf8)!
 		let account = try JSONDecoder().decode(Account.self, from: data)
-		
+
 		#expect(account.balanceInDollars == 1234.56)
 		#expect(account.name == "Test Account")
 		#expect(account.currency == "USD")
+		#expect(account.org.domain == "testbank.com")
 	}
 	
 	@Test("Transaction debit/credit detection")
@@ -76,8 +81,14 @@ struct SwiftFinTests {
 	func simpleFinResponseDecoding() async throws {
 		let json = """
 		{
+			"errors": [],
 			"accounts": [
 				{
+					"org": {
+						"domain": "mybank.com",
+						"sfin-url": "https://beta-bridge.simplefin.org/simplefin",
+						"name": "My Bank"
+					},
 					"id": "checking-account",
 					"name": "Checking Account",
 					"currency": "USD",
@@ -87,6 +98,11 @@ struct SwiftFinTests {
 					"transactions": []
 				},
 				{
+					"org": {
+						"domain": "mybank.com",
+						"sfin-url": "https://beta-bridge.simplefin.org/simplefin",
+						"name": "My Bank"
+					},
 					"id": "savings-account",
 					"name": "Savings Account",
 					"currency": "USD",
@@ -105,30 +121,38 @@ struct SwiftFinTests {
 			]
 		}
 		"""
-		
+
 		let data = json.data(using: .utf8)!
 		let response = try JSONDecoder().decode(SimplefinResponse.self, from: data)
-		
+
+		#expect(response.errors.isEmpty == true)
 		#expect(response.accounts.count == 2)
-		
+
 		let checkingAccount = response.accounts[0]
 		#expect(checkingAccount.name == "Checking Account")
 		#expect(checkingAccount.availableBalanceInDollars == 950.00)
 		#expect(checkingAccount.transactions.isEmpty == true)
-		
+		#expect(checkingAccount.org.domain == "mybank.com")
+		#expect(checkingAccount.org.name == "My Bank")
+		#expect(checkingAccount.org.sfinUrl == "https://beta-bridge.simplefin.org/simplefin")
+
 		let savingsAccount = response.accounts[1]
 		#expect(savingsAccount.name == "Savings Account")
 		#expect(savingsAccount.transactions.count == 1)
 		#expect(savingsAccount.transactions[0].description == "Interest Payment")
 		#expect(savingsAccount.transactions[0].memo == "Monthly interest")
+		#expect(savingsAccount.org.domain == "mybank.com")
 	}
 	
 	@Test("Date formatting for accounts and transactions")
 	func dateFormatting() async throws {
 		let timestamp: Int = 1628614046 // This is August 10, 2021 6:20:46 PM UTC
-		
+
 		let accountJson = """
 		{
+			"org": {
+				"sfin-url": "https://beta-bridge.simplefin.org/simplefin"
+			},
 			"id": "test-account",
 			"name": "Test Account",
 			"currency": "USD",
@@ -137,7 +161,7 @@ struct SwiftFinTests {
 			"transactions": []
 		}
 		"""
-		
+
 		let transactionJson = """
 		{
 			"id": "test-transaction",
@@ -146,17 +170,163 @@ struct SwiftFinTests {
 			"description": "Test Transaction"
 		}
 		"""
-		
+
 		let accountData = accountJson.data(using: .utf8)!
 		let transactionData = transactionJson.data(using: .utf8)!
-		
+
 		let account = try JSONDecoder().decode(Account.self, from: accountData)
 		let transaction = try JSONDecoder().decode(Transaction.self, from: transactionData)
-		
+
 		let expectedDate = Date(timeIntervalSince1970: TimeInterval(timestamp))
-		
+
 		#expect(account.balanceDateFormatted == expectedDate)
 		#expect(transaction.postedDate == expectedDate)
+	}
+
+	@Test("Organization model decoding with all fields")
+	func organizationDecoding() async throws {
+		let json = """
+		{
+			"org": {
+				"domain": "www.chase.com",
+				"sfin-url": "https://beta-bridge.simplefin.org/simplefin",
+				"name": "Chase Bank",
+				"url": "https://www.chase.com",
+				"id": "www.chase.com"
+			},
+			"id": "test-account",
+			"name": "Test Account",
+			"currency": "USD",
+			"balance": "100.00",
+			"balance-date": 1628614046,
+			"transactions": []
+		}
+		"""
+
+		let data = json.data(using: .utf8)!
+		let account = try JSONDecoder().decode(Account.self, from: data)
+
+		#expect(account.org.domain == "www.chase.com")
+		#expect(account.org.sfinUrl == "https://beta-bridge.simplefin.org/simplefin")
+		#expect(account.org.name == "Chase Bank")
+		#expect(account.org.url == "https://www.chase.com")
+		#expect(account.org.id == "www.chase.com")
+	}
+
+	@Test("Organization model with minimal fields")
+	func organizationMinimalFields() async throws {
+		let json = """
+		{
+			"org": {
+				"sfin-url": "https://beta-bridge.simplefin.org/simplefin"
+			},
+			"id": "test-account",
+			"name": "Test Account",
+			"currency": "USD",
+			"balance": "100.00",
+			"balance-date": 1628614046,
+			"transactions": []
+		}
+		"""
+
+		let data = json.data(using: .utf8)!
+		let account = try JSONDecoder().decode(Account.self, from: data)
+
+		#expect(account.org.sfinUrl == "https://beta-bridge.simplefin.org/simplefin")
+		#expect(account.org.domain == nil)
+		#expect(account.org.name == nil)
+		#expect(account.org.url == nil)
+		#expect(account.org.id == nil)
+	}
+
+	@Test("Response with errors field")
+	func responseWithErrors() async throws {
+		let json = """
+		{
+			"errors": ["Connection timeout", "Retry recommended"],
+			"accounts": []
+		}
+		"""
+
+		let data = json.data(using: .utf8)!
+		let response = try JSONDecoder().decode(SimplefinResponse.self, from: data)
+
+		#expect(response.errors.count == 2)
+		#expect(response.errors[0] == "Connection timeout")
+		#expect(response.errors[1] == "Retry recommended")
+		#expect(response.accounts.isEmpty == true)
+	}
+
+	@Test("Response with empty errors array")
+	func responseWithEmptyErrors() async throws {
+		let json = """
+		{
+			"errors": [],
+			"accounts": [
+				{
+					"org": {
+						"sfin-url": "https://test.com"
+					},
+					"id": "test",
+					"name": "Test",
+					"currency": "USD",
+					"balance": "0",
+					"balance-date": 1628614046,
+					"transactions": []
+				}
+			]
+		}
+		"""
+
+		let data = json.data(using: .utf8)!
+		let response = try JSONDecoder().decode(SimplefinResponse.self, from: data)
+
+		#expect(response.errors.isEmpty == true)
+		#expect(response.accounts.count == 1)
+	}
+
+	@Test("New query parameters compilation test", .tags(.networking))
+	func newQueryParameters() async throws {
+		let client = SimpleFinClient()
+
+		// Test that all new parameter combinations compile
+		// Use explicit Int? type to avoid ambiguity between Int and Date overloads
+		do {
+			_ = try await client.fetchAccounts(startDate: nil as Int?, pending: true)
+		} catch SimpleFinError.invalidAccessURL {
+			#expect(Bool(true))
+		}
+
+		do {
+			_ = try await client.fetchAccounts(startDate: nil as Int?, balancesOnly: true)
+		} catch SimpleFinError.invalidAccessURL {
+			#expect(Bool(true))
+		}
+
+		do {
+			_ = try await client.fetchAccounts(startDate: nil as Int?, accountIds: ["ACT-123", "ACT-456"])
+		} catch SimpleFinError.invalidAccessURL {
+			#expect(Bool(true))
+		}
+
+		do {
+			_ = try await client.fetchAccounts(
+				startDate: 1628614046,
+				pending: true,
+				balancesOnly: false,
+				accountIds: ["ACT-123"]
+			)
+		} catch SimpleFinError.invalidAccessURL {
+			#expect(Bool(true))
+		}
+
+		// Test Date-based version
+		do {
+			let date = Date()
+			_ = try await client.fetchAccounts(startDate: date, pending: true)
+		} catch SimpleFinError.invalidAccessURL {
+			#expect(Bool(true))
+		}
 	}
 	
 	@Test("SimpleFinClient initialization")
@@ -187,6 +357,7 @@ struct SwiftFinTests {
 		// Test with string balance-date
 		let jsonWithStringDate = """
 		{
+			"org": {"sfin-url": "https://test.com"},
 			"id": "test-account",
 			"name": "Test Account",
 			"currency": "USD",
@@ -195,10 +366,11 @@ struct SwiftFinTests {
 			"transactions": []
 		}
 		"""
-		
+
 		// Test with integer balance-date
 		let jsonWithIntDate = """
 		{
+			"org": {"sfin-url": "https://test.com"},
 			"id": "test-account",
 			"name": "Test Account",
 			"currency": "USD",
@@ -207,13 +379,13 @@ struct SwiftFinTests {
 			"transactions": []
 		}
 		"""
-		
+
 		let stringDateData = jsonWithStringDate.data(using: .utf8)!
 		let intDateData = jsonWithIntDate.data(using: .utf8)!
-		
+
 		let accountFromString = try JSONDecoder().decode(Account.self, from: stringDateData)
 		let accountFromInt = try JSONDecoder().decode(Account.self, from: intDateData)
-		
+
 		#expect(accountFromString.balanceDate == 1628614046)
 		#expect(accountFromInt.balanceDate == 1628614046)
 		#expect(accountFromString.balanceDateFormatted == accountFromInt.balanceDateFormatted)
