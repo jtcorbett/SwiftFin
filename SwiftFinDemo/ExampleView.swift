@@ -1,14 +1,27 @@
 import SwiftUI
 import SwiftFin
 
+/// SwiftFin Demo View
+///
+/// This view demonstrates the key features of SwiftFin:
+/// - Organization/bank information display (org.name, org.domain, org.url)
+/// - API error/warning handling (response.errors array)
+/// - New query parameters:
+///   - pending: Include pending transactions
+///   - balancesOnly: Fetch only account balances without transaction history
+///   - accountIds: Filter by specific account IDs (not shown in this demo)
+/// - Transaction details including pending status and extra fields
 struct SwiftFinExampleView: View {
     @State private var accounts: [Account] = []
+    @State private var apiErrors: [String] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
-    
+    @State private var includePending = false
+    @State private var balancesOnly = false
+
     // Setup token from environment variable
     private let setupToken = ProcessInfo.processInfo.environment["SWIFTFIN_SETUP_TOKEN"] ?? ""
-    
+
     // UserDefaults key for storing access URL - You can use whatever string you want just make sure to save it
 	// Failure to save the key means that a new setupToken will need to be generated!
     private let accessURLKey = "SwiftFin_AccessURL"
@@ -16,6 +29,29 @@ struct SwiftFinExampleView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 20) {
+                // Show API errors/warnings if present
+                if !apiErrors.isEmpty {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundColor(.orange)
+                                Text("API Warnings")
+                                    .font(.headline)
+                            }
+                            ForEach(apiErrors, id: \.self) { error in
+                                Text("• \(error)")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        .padding()
+                        .background(Color.orange.opacity(0.1))
+                        .cornerRadius(8)
+                    }
+                    .frame(maxHeight: 100)
+                }
+
                 if isLoading {
                     ProgressView("Loading financial data...")
                         .padding()
@@ -58,8 +94,15 @@ struct SwiftFinExampleView: View {
             .navigationTitle("SwiftFin Demo")
             .toolbar {
 				ToolbarItem(placement: .automatic) {
-                    Button("Refresh") {
-                        fetchData()
+                    Menu {
+                        Toggle("Include Pending", isOn: $includePending)
+                        Toggle("Balances Only", isOn: $balancesOnly)
+                        Divider()
+                        Button("Refresh") {
+                            fetchData()
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
                     }
                     .disabled(isLoading)
                 }
@@ -88,20 +131,36 @@ struct SwiftFinExampleView: View {
     private func fetchDataAsync() async {
         isLoading = true
         errorMessage = nil
-        
+        apiErrors = []
+
         // Check if setup token is available
         guard !setupToken.isEmpty else {
             errorMessage = "Setup token not found. Please set SWIFTFIN_SETUP_TOKEN environment variable."
             isLoading = false
             return
         }
-        
+
         do {
-            // Use the new SimpleFin.fetchData method that handles everything automatically
-            let response = try await SimpleFin.fetchData(
-                setupToken: setupToken,
-                userDefaultsKey: accessURLKey
+            // Get or create the client
+            let client: SimpleFinClient
+            if let savedURL = UserDefaults.standard.string(forKey: accessURLKey) {
+                client = SimpleFin.client(withAccessURL: savedURL)
+            } else {
+                client = try await SimpleFin.client(withSetupToken: setupToken)
+                if let accessURL = client.accessURL {
+                    UserDefaults.standard.set(accessURL, forKey: accessURLKey)
+                }
+            }
+
+            // Fetch accounts with new query parameters
+            let response = try await client.fetchAccounts(
+                pending: includePending ? true : nil,
+                balancesOnly: balancesOnly ? true : nil
             )
+
+            // Store API errors/warnings
+            self.apiErrors = response.errors
+
             self.accounts = response.accounts
             
         } catch let error as SimpleFinError {
@@ -142,6 +201,12 @@ struct AccountView: View {
                 VStack(alignment: .leading) {
                     Text(account.name)
                         .font(.headline)
+                    // Display organization name
+                    if let orgName = account.org.name {
+                        Text(orgName)
+                            .font(.subheadline)
+                            .foregroundColor(.blue)
+                    }
                     Text(account.currency)
                         .font(.caption)
                         .foregroundColor(.secondary)
@@ -175,13 +240,32 @@ struct AccountView: View {
             // Account details
             if isExpanded {
                 VStack(alignment: .leading, spacing: 8) {
+                    // Organization details
+                    if let orgDomain = account.org.domain {
+                        HStack {
+                            Text("Bank Domain:")
+                                .fontWeight(.medium)
+                            Text(orgDomain)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+
+                    if let orgUrl = account.org.url {
+                        HStack {
+                            Text("Bank URL:")
+                                .fontWeight(.medium)
+                            Link(orgUrl, destination: URL(string: orgUrl)!)
+                                .font(.caption)
+                        }
+                    }
+
                     HStack {
                         Text("Account ID:")
                             .fontWeight(.medium)
                         Text(account.id)
                             .foregroundColor(.secondary)
                     }
-                    
+
                     HStack {
                         Text("Balance Date:")
                             .fontWeight(.medium)

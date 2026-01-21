@@ -1,9 +1,14 @@
 import SwiftUI
 import SwiftFin
 
+/// Weekly Transactions View
+///
+/// Demonstrates the new `pending` query parameter to include pending transactions
+/// from the past week. Also shows how to handle API errors from response.errors.
 struct WeeklyTransactionsView: View {
     @State private var accountTransactions: [(account: Account, transactions: [SwiftFin.Transaction])] = []
     @State private var selectedTransaction: SwiftFin.Transaction?
+    @State private var apiErrors: [String] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
     
@@ -167,13 +172,26 @@ struct WeeklyTransactionsView: View {
         do {
             // Calculate start date for one week ago
             let oneWeekAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
-            
-            // Use the SimpleFin.fetchData method that handles everything automatically
-            let response = try await SimpleFin.fetchData(
-                setupToken: setupToken,
-                userDefaultsKey: accessURLKey,
-                startDate: oneWeekAgo
+
+            // Get or create the client
+            let client: SimpleFinClient
+            if let savedURL = UserDefaults.standard.string(forKey: accessURLKey) {
+                client = SimpleFin.client(withAccessURL: savedURL)
+            } else {
+                client = try await SimpleFin.client(withSetupToken: setupToken)
+                if let accessURL = client.accessURL {
+                    UserDefaults.standard.set(accessURL, forKey: accessURLKey)
+                }
+            }
+
+            // Fetch weekly transactions with pending=true to include pending transactions
+            let response = try await client.fetchAccounts(
+                startDate: oneWeekAgo,
+                pending: true  // NEW: Include pending transactions
             )
+
+            // Store API errors/warnings
+            self.apiErrors = response.errors
             
             // Group transactions by account
             var accountTransactionsData: [(account: Account, transactions: [SwiftFin.Transaction])] = []
@@ -341,13 +359,19 @@ struct DetailedTransactionRowView: View {
 struct AccountHeaderView: View {
     let account: Account
     let transactionCount: Int
-    
+
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text(account.name)
                     .font(.headline)
                     .foregroundColor(.primary)
+                // Show organization name
+                if let orgName = account.org.name {
+                    Text(orgName)
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                }
                 Text(account.currency)
                     .font(.caption)
                     .foregroundColor(.secondary)

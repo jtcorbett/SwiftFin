@@ -1,9 +1,14 @@
 import SwiftUI
 import SwiftFin
 
+/// Fetch Single Account View
+///
+/// Demonstrates the new `accountIds` query parameter to filter for specific accounts.
+/// Also displays organization information for the account.
 struct FetchSingleAccountView: View {
     @State private var accountIdentifier: String = ""
     @State private var account: Account?
+    @State private var apiErrors: [String] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
     
@@ -175,6 +180,16 @@ struct SingleAccountView: View {
                             Text(account.name)
                                 .font(.title2)
                                 .fontWeight(.bold)
+                            // Show organization name prominently
+                            if let orgName = account.org.name {
+                                HStack {
+                                    Image(systemName: "building.2")
+                                        .foregroundColor(.blue)
+                                    Text(orgName)
+                                        .font(.subheadline)
+                                        .foregroundColor(.blue)
+                                }
+                            }
                             Text("ID: \(account.id)")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
@@ -206,6 +221,22 @@ struct SingleAccountView: View {
                         Text(formatDate(account.balanceDateFormatted))
                             .font(.caption)
                             .foregroundColor(.secondary)
+                    }
+
+                    // Show additional organization details if available
+                    if let orgDomain = account.org.domain {
+                        HStack {
+                            Text("Bank Domain:")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text(orgDomain)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    if let orgUrl = account.org.url {
+                        Link("Visit Bank Website", destination: URL(string: orgUrl)!)
+                            .font(.caption)
                     }
                 }
                 .padding()
